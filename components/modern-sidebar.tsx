@@ -63,7 +63,7 @@ function SidebarContent({ role, user, logout, pathname, onLinkClick }: {
         <div className="flex flex-col h-full">
             {/* Premium Logo Section */}
             <div className="p-8">
-                <div className="flex items-center gap-3">
+                <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
                     {/* <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
                         <Sparkles className="w-6 h-6 text-white" />
                     </div> */}
@@ -74,7 +74,7 @@ function SidebarContent({ role, user, logout, pathname, onLinkClick }: {
                         </h1>
                         <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">Get Gig-Ready</p>
                     </div>
-                </div>
+                </Link>
             </div>
 
             {/* Main Navigation */}

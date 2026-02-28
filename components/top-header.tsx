@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { Search, Bell, User, Sparkles, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,7 @@ export function TopHeader({ user, onSearch }: TopHeaderProps) {
             <div className="flex items-center justify-between px-4 md:px-8 h-16 md:h-20">
                 {/* Brand / Logo (Visible on mobile to fill space) */}
                 <div className="flex md:hidden items-center gap-2 pl-10"> {/* Leave room for sidebar toggle */}
-                    <div className="">
+                    <Link href="/" className="hover:opacity-80 transition-opacity cursor-pointer">
                         <div>
                             <h1 className="text-xl font-semibold tracking-tight">
                                 <span style={{ color: '#FF6B35' }}>Plan</span>
@@ -39,7 +40,7 @@ export function TopHeader({ user, onSearch }: TopHeaderProps) {
                             </h1>
                             {/* <p className="text-[10px] uppercase tracking-widest font-semibold text-slate-400">Get Gig-Ready</p> */}
                         </div>
-                    </div>
+                    </Link>
                 </div>
 
                 {/* Desktop Search */}
