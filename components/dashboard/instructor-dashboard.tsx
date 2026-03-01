@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSupabaseAuth } from '@/lib/supabase-auth-context';
 import { supabaseApi } from '@/lib/supabase-api';
+import { supabaseClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,11 +34,14 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 export function InstructorDashboard() {
     const { user } = useSupabaseAuth();
     const [cohorts, setCohorts] = useState<any[]>([]);
+    const [courses, setCourses] = useState<any[]>([]);
+    const [students, setStudents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [stats, setStats] = useState({
         totalStudents: 0,
         activeCohorts: 0,
-        avgCompletion: 0
+        avgCompletion: 0,
+        totalCourses: 0
     });
     const [growthData, setGrowthData] = useState<any[]>([
         { name: 'Jan', students: 20 },
@@ -52,15 +56,45 @@ export function InstructorDashboard() {
         const loadData = async () => {
             try {
                 if (user?.id) {
+                    // Load cohorts
                     const allCohorts = await supabaseApi.getCohorts();
                     setCohorts(allCohorts);
+
+                    // Load courses
+                    const allCourses = await supabaseApi.getCourses();
+                    setCourses(allCourses);
+
+                    // Load students (enrollments with learner data)
+                    const { data: enrollmentsData, error } = await supabaseClient
+                        .from('cohort_enrollments')
+                        .select(`
+                            *,
+                            learner:profiles!cohort_enrollments_learner_id_fkey(
+                                id,
+                                email,
+                                first_name,
+                                last_name,
+                                avatar_url
+                            ),
+                            cohort:cohorts(
+                                id,
+                                name
+                            )
+                        `)
+                        .eq('status', 'active')
+                        .order('enrolled_at', { ascending: false });
+
+                    if (!error && enrollmentsData) {
+                        setStudents(enrollmentsData);
+                    }
 
                     // Calculate stats
                     const activeCohorts = allCohorts.filter((c: any) => c.status === 'active').length;
                     setStats({
-                        totalStudents: allCohorts.reduce((acc: number, c: any) => acc + (c.max_learners || 0), 0),
+                        totalStudents: enrollmentsData?.length || 0,
                         activeCohorts,
-                        avgCompletion: 78
+                        avgCompletion: 78,
+                        totalCourses: allCourses.length
                     });
                 }
             } catch (error) {
@@ -235,15 +269,21 @@ export function InstructorDashboard() {
                             </CardHeader>
                             <CardContent className="p-6">
                                 <div className="space-y-3">
-                                    <Button className="w-full justify-start rounded-xl h-12 font-semibold" style={{ backgroundColor: '#FF6B35', color: 'white' }}>
-                                        <Plus className="w-4 h-4 mr-2" /> Create New Cohort
-                                    </Button>
-                                    <Button variant="outline" className="w-full justify-start rounded-xl h-12 font-semibold border-slate-200">
-                                        <Users className="w-4 h-4 mr-2" /> View All Learners
-                                    </Button>
-                                    <Button variant="outline" className="w-full justify-start rounded-xl h-12 font-semibold border-slate-200">
-                                        <BookOpen className="w-4 h-4 mr-2" /> Course Library
-                                    </Button>
+                                    <Link href="/dashboard/cohorts">
+                                        <Button className="w-full justify-start rounded-xl h-12 font-semibold" style={{ backgroundColor: '#FF6B35', color: 'white' }}>
+                                            <Plus className="w-4 h-4 mr-2" /> Create New Cohort
+                                        </Button>
+                                    </Link>
+                                    <Link href="/dashboard/learners">
+                                        <Button variant="outline" className="w-full justify-start rounded-xl h-12 font-semibold border-slate-200">
+                                            <Users className="w-4 h-4 mr-2" /> View All Learners
+                                        </Button>
+                                    </Link>
+                                    <Link href="/dashboard/courses">
+                                        <Button variant="outline" className="w-full justify-start rounded-xl h-12 font-semibold border-slate-200">
+                                            <BookOpen className="w-4 h-4 mr-2" /> Course Library
+                                        </Button>
+                                    </Link>
                                 </div>
 
                                 <div className="mt-6 p-4 rounded-2xl" style={{ background: 'linear-gradient(135deg, #2E5EFF 0%, #1E3A8A 100%)' }}>

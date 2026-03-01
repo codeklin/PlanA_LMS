@@ -46,7 +46,7 @@ export function LearnerDashboard() {
 
                 // Check if user has any active enrollments
                 const hasActiveEnrollment = enrollmentsData.some(
-                    (e: any) => e.status === 'active' || e.status === 'approved'
+                    (e: any) => e.status === 'active' || e.status === 'approved' || e.status === 'pending'
                 );
                 setNeedsCohort(!hasActiveEnrollment);
             }
@@ -127,7 +127,7 @@ export function LearnerDashboard() {
                         <StatCard
                             icon={BookOpen}
                             label="Active Projects"
-                            value={enrollments.filter((e: any) => e.status === 'active').length}
+                            value={enrollments.filter((e: any) => e.status === 'active' || e.status === 'pending').length}
                             iconColor="text-orange-600"
                             iconBgColor="bg-orange-50"
                         />
@@ -223,6 +223,7 @@ export function LearnerDashboard() {
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-widest text-slate-400 border-slate-100">Project</Badge>
                                                         {enrollment.status === 'active' && <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 text-[9px] font-bold uppercase tracking-widest">Active</Badge>}
+                                                        {enrollment.status === 'pending' && <Badge className="bg-amber-50 text-amber-600 border-amber-100 text-[9px] font-bold uppercase tracking-widest">Pending Approval</Badge>}
                                                     </div>
                                                     <h4 className="font-semibold text-lg text-slate-900 truncate group-hover:text-orange-600 transition-colors uppercase tracking-tight">{enrollment.cohort?.name || 'Project'}</h4>
                                                     <p className="text-sm text-slate-500 font-medium">Status: {enrollment.status}</p>
@@ -278,10 +279,12 @@ export function LearnerDashboard() {
                                     <div className="flex items-center justify-between mb-2">
                                         <span className="text-sm font-medium text-slate-700">Active Projects</span>
                                         <span className="text-2xl font-bold" style={{ color: '#2E5EFF' }}>
-                                            {enrollments.filter((e: any) => e.status === 'active').length}
+                                            {enrollments.filter((e: any) => e.status === 'active' || e.status === 'pending').length}
                                         </span>
                                     </div>
-                                    <div className="text-xs text-slate-500">In progress</div>
+                                    <div className="text-xs text-slate-500">
+                                        {enrollments.some((e: any) => e.status === 'pending') ? 'Pending approval' : 'In progress'}
+                                    </div>
                                 </div>
                             </div>
                         </div>

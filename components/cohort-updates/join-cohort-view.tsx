@@ -5,7 +5,8 @@ import { supabaseApi } from '@/lib/supabase-api';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Calendar } from 'lucide-react';
+import { Users, Calendar, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface JoinCohortViewProps {
   onJoinSuccess?: () => void;
@@ -14,6 +15,7 @@ interface JoinCohortViewProps {
 export function JoinCohortView({ onJoinSuccess }: JoinCohortViewProps) {
   const [cohorts, setCohorts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadCohorts = async () => {
@@ -22,6 +24,7 @@ export function JoinCohortView({ onJoinSuccess }: JoinCohortViewProps) {
         setCohorts(data.filter((c: any) => c.status === 'active'));
       } catch (error) {
         console.error('Error loading cohorts:', error);
+        toast.error('Failed to load cohorts');
       } finally {
         setIsLoading(false);
       }
@@ -31,13 +34,35 @@ export function JoinCohortView({ onJoinSuccess }: JoinCohortViewProps) {
   }, []);
 
   const handleEnroll = async (cohortId: string) => {
+    setEnrollingId(cohortId);
     try {
       await supabaseApi.enrollInCohort(cohortId);
+      toast.success('Successfully enrolled in cohort!');
       if (onJoinSuccess) {
         onJoinSuccess();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error enrolling:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error details:', error?.details);
+      console.error('Error hint:', error?.hint);
+      console.error('Error code:', error?.code);
+      
+      // Show user-friendly error message
+      let errorMessage = 'Failed to enroll in cohort';
+      if (error?.message) {
+        if (error.message.includes('duplicate key')) {
+          errorMessage = 'You are already enrolled in this cohort';
+        } else if (error.message.includes('policy')) {
+          errorMessage = 'Permission denied. Please contact support.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
+    } finally {
+      setEnrollingId(null);
     }
   };
 
@@ -86,8 +111,9 @@ export function JoinCohortView({ onJoinSuccess }: JoinCohortViewProps) {
                   className="w-full" 
                   style={{ backgroundColor: '#FF6B35' }}
                   onClick={() => handleEnroll(cohort.id)}
+                  disabled={enrollingId === cohort.id}
                 >
-                  Enroll Now
+                  {enrollingId === cohort.id ? 'Enrolling...' : 'Enroll Now'}
                 </Button>
               </CardFooter>
             </Card>
