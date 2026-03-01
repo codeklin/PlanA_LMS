@@ -19,7 +19,7 @@ export default function AdminLayout({
     if (!isLoading) {
       if (!isAuthenticated) {
         router.push('/login');
-      } else if (user?.role !== 'admin' && user?.role !== 'super-admin') {
+      } else if (user?.role !== 'admin' && user?.role !== 'super-admin' && user?.role !== 'instructor') {
         router.push('/dashboard');
       }
     }
@@ -36,13 +36,16 @@ export default function AdminLayout({
     );
   }
 
-  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'super-admin')) {
+  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'super-admin' && user?.role !== 'instructor')) {
     return null;
   }
 
+  // Determine the role for sidebar
+  const sidebarRole = user?.role === 'instructor' ? 'instructor' : 'admin';
+
   return (
     <div className="min-h-screen bg-background">
-      <ModernSidebar role="admin" />
+      <ModernSidebar role={sidebarRole} />
       <main className="ml-0 lg:ml-80 min-h-screen">
         {children}
       </main>
