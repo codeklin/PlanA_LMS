@@ -45,26 +45,37 @@ class SupabaseAPIClient {
     if (authError) throw authError;
     if (!authData.user) throw new Error('User creation failed');
 
-    // 2. Wait a moment for auth to propagate
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // 3. Create profile (will be created by database trigger or manually)
-    try {
-      const { data: profile, error: profileError } = await supabaseClient
-        .from('profiles')
-        .insert({
+    // 2. If email confirmation is required, return early
+    if (authData.session === null) {
+      // Email confirmation required - return user data
+      return {
+        user: {
           id: authData.user.id,
-          email,
+          email: authData.user.email || email,
           first_name: firstName,
           last_name: lastName,
           role,
-        })
-        .select()
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as any,
+        session: null,
+      };
+    }
+
+    // 3. If session exists (email confirmation disabled), wait for profile to be created by trigger
+    // Give the database trigger time to create the profile
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+      const { data: profile, error: profileError } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
         .single();
 
       if (profileError) {
-        console.warn('Profile creation warning:', profileError);
-        // If profile creation fails, return user data from auth
+        console.warn('Profile fetch warning:', profileError);
+        // Profile might not exist yet, return user data from auth
         return {
           user: {
             id: authData.user.id,
@@ -72,6 +83,14 @@ class SupabaseAPIClient {
             first_name: firstName,
             last_name: lastName,
             role,
+            status: 'active',
+            active_cohort_id: null,
+            avatar_url: null,
+            phone_number: null,
+            location: null,
+            bio: null,
+            skills: [],
+            portfolio_url: null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           } as any,
@@ -84,8 +103,7 @@ class SupabaseAPIClient {
         session: authData.session,
       };
     } catch (error) {
-      console.error('Profile creation error:', error);
-      // Return auth user data even if profile creation fails
+      console.error('Profile fetch error:', error);
       return {
         user: {
           id: authData.user.id,
@@ -93,6 +111,14 @@ class SupabaseAPIClient {
           first_name: firstName,
           last_name: lastName,
           role,
+          status: 'active',
+          active_cohort_id: null,
+          avatar_url: null,
+          phone_number: null,
+          location: null,
+          bio: null,
+          skills: [],
+          portfolio_url: null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any,

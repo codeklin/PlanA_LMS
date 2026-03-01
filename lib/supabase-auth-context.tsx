@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { supabaseApi, AuthResponse } from './supabase-api';
 import { supabaseClient } from './supabase/client';
 import type { Database } from './supabase/client';
@@ -20,71 +20,135 @@ interface AuthContextType {
     email: string,
     password: string,
     role?: string
-  ) => Promise<void>;
+  ) => Promise<AuthResponse>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Global flag to prevent multiple initializations across component remounts
+let globalInitialized = false;
+let globalAuthSubscription: any = null;
+
 export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const initializingRef = useRef(false);
 
   const refreshUser = useCallback(async () => {
     try {
       const profile = await supabaseApi.getMe();
-      setUser(profile);
+      if (mountedRef.current) {
+        setUser(profile);
+      }
     } catch (error) {
       console.error('Failed to refresh user', error);
-      setUser(null);
+      if (mountedRef.current) {
+        setUser(null);
+      }
     }
   }, []);
 
-  // Initialize auth state
+  // Initialize auth state only once globally
   useEffect(() => {
+    mountedRef.current = true;
+
     const initializeAuth = async () => {
+      // Prevent multiple initializations
+      if (globalInitialized || initializingRef.current) {
+        setIsLoading(false);
+        return;
+      }
+
+      initializingRef.current = true;
+
       try {
+        // Small delay to handle React Strict Mode double mounting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        if (!mountedRef.current) return;
+
         const { data: { session } } = await supabaseClient.auth.getSession();
         
+        if (!mountedRef.current) return;
+
         if (session?.user) {
-          const profile = await supabaseApi.getMe();
-          setUser(profile);
+          try {
+            const profile = await supabaseApi.getMe();
+            if (mountedRef.current) {
+              setUser(profile);
+            }
+          } catch (error) {
+            console.error('Failed to fetch profile', error);
+            if (mountedRef.current) {
+              setUser(null);
+            }
+          }
         }
+
+        // Set up auth state listener only once
+        if (!globalAuthSubscription) {
+          const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
+            async (event, session) => {
+              console.log('Auth event:', event);
+              
+              if (event === 'SIGNED_IN' && session?.user) {
+                try {
+                  const profile = await supabaseApi.getMe();
+                  if (mountedRef.current) {
+                    setUser(profile);
+                  }
+                } catch (error) {
+                  console.error('Failed to fetch profile', error);
+                }
+              } else if (event === 'SIGNED_OUT') {
+                if (mountedRef.current) {
+                  setUser(null);
+                }
+              } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+                try {
+                  const profile = await supabaseApi.getMe();
+                  if (mountedRef.current) {
+                    setUser(profile);
+                  }
+                } catch (error) {
+                  console.error('Failed to refresh profile', error);
+                }
+              }
+            }
+          );
+          
+          globalAuthSubscription = subscription;
+        }
+
+        globalInitialized = true;
       } catch (error) {
         console.error('Auth initialization failed', error);
       } finally {
-        setIsLoading(false);
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
+        initializingRef.current = false;
       }
     };
 
     initializeAuth();
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          try {
-            const profile = await supabaseApi.getMe();
-            setUser(profile);
-          } catch (error) {
-            console.error('Failed to fetch profile', error);
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-      }
-    );
-
     return () => {
-      subscription.unsubscribe();
+      mountedRef.current = false;
+      // Don't unsubscribe on unmount to prevent issues with React Strict Mode
+      // The subscription will persist across remounts
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
       const response: AuthResponse = await supabaseApi.login({ email, password });
-      setUser(response.user);
+      if (mountedRef.current) {
+        setUser(response.user);
+      }
     } catch (error) {
       throw error;
     }
@@ -97,7 +161,7 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
       email: string,
       password: string,
       role = 'learner'
-    ) => {
+    ): Promise<AuthResponse> => {
       try {
         const response: AuthResponse = await supabaseApi.register({
           firstName,
@@ -106,7 +170,13 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
           password,
           role: role as any,
         });
-        setUser(response.user);
+        
+        // Only set user if session exists (email confirmation disabled)
+        if (response.session && mountedRef.current) {
+          setUser(response.user);
+        }
+        
+        return response;
       } catch (error) {
         throw error;
       }
@@ -117,7 +187,9 @@ export const SupabaseAuthProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const logout = useCallback(async () => {
     try {
       await supabaseApi.logout();
-      setUser(null);
+      if (mountedRef.current) {
+        setUser(null);
+      }
     } catch (error) {
       console.error('Logout failed', error);
     }

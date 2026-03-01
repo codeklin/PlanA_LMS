@@ -44,7 +44,17 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      await register(firstName, lastName, email, password, role);
+      const response = await register(firstName, lastName, email, password, role);
+      
+      // Check if email confirmation is required
+      if (response && !response.session) {
+        toast.success('Account created! Please check your email to confirm your account.', {
+          duration: 6000,
+        });
+        // Don't redirect, show a message instead
+        return;
+      }
+      
       toast.success('Welcome to PlanA! Let\'s get you gig-ready.');
       router.push('/dashboard');
     } catch (error: any) {

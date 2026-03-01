@@ -21,6 +21,13 @@ export default function DashboardLayout({
     }
   }, [isAuthenticated, isLoading, router]);
 
+  useEffect(() => {
+    // Redirect admins/super-admins to their respective dashboards
+    if (!isLoading && user && (user.role === 'admin' || user.role === 'super-admin')) {
+      router.push('/admin');
+    }
+  }, [isLoading, user, router]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -36,9 +43,8 @@ export default function DashboardLayout({
     return null;
   }
 
-  // Redirect instructors/admins to their respective dashboards
+  // Don't render dashboard for admins (they'll be redirected)
   if (user?.role === 'admin' || user?.role === 'super-admin') {
-    router.push('/admin');
     return null;
   }
 

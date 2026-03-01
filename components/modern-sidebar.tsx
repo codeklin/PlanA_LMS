@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSupabaseAuth } from '@/lib/supabase-auth-context';
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
 import {
     Menu,
     Home,
@@ -167,6 +168,10 @@ export function ModernSidebar({ role = 'learner' }: ModernSidebarProps) {
                         </button>
                     </SheetTrigger>
                     <SheetContent side="left" className="p-0 border-r-0 bg-white w-80">
+                        <VisuallyHidden>
+                            <SheetTitle>Navigation Menu</SheetTitle>
+                            <SheetDescription>Main navigation sidebar for the application</SheetDescription>
+                        </VisuallyHidden>
                         <SidebarContent role={role} user={user} logout={logout} pathname={pathname} onLinkClick={() => setIsOpen(false)} />
                     </SheetContent>
                 </Sheet>

@@ -1,14 +1,51 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { createClient } from '@supabase/supabase-js';
 
-// Client-side Supabase client for use in React components
-export const supabase = createClientComponentClient();
+// Create a singleton instance to prevent multiple initializations
+let supabaseClientInstance: ReturnType<typeof createClient> | null = null;
 
-// Alternative: Direct client (use when auth-helpers not needed)
-export const supabaseClient = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Get or create the Supabase client singleton
+export const getSupabaseClient = () => {
+  if (typeof window === 'undefined') {
+    // Server-side: create new instance each time
+    return createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false
+        }
+      }
+    );
+  }
+
+  // Client-side: use singleton
+  if (!supabaseClientInstance) {
+    supabaseClientInstance = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          storage: window.localStorage,
+          storageKey: 'plana-auth'
+        }
+      }
+    );
+  }
+
+  return supabaseClientInstance;
+};
+
+// Export the singleton client
+export const supabaseClient = getSupabaseClient();
+
+// For backwards compatibility
+export const supabase = supabaseClient;
 
 // Database types (will be auto-generated later with: npx supabase gen types typescript)
 export type Database = {
