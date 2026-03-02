@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils';
 import { PlayCircle, FileText, CheckCircle, Lock } from 'lucide-react';
 
 interface Lesson {
-    _id: string;
+    id: string;
     name: string;
-    duration: number;
-    videoUrl?: string;
+    estimated_minutes: number;
+    video_url?: string;
     assignment?: {
         title: string;
         passingLearners?: string[];
@@ -16,7 +16,7 @@ interface Lesson {
 }
 
 interface Module {
-    _id: string;
+    id: string;
     name: string;
     description: string;
     lessons: Lesson[];
@@ -40,7 +40,7 @@ function getModuleCompletionStatus(modules: Module[], completedLessonIds: string
         const assignmentLessons = (module.lessons || []).filter(l => !!l.assignment?.title);
         if (assignmentLessons.length === 0) return true; // No assignments => consider complete
         return assignmentLessons.every(l =>
-            completedLessonIds.includes(l._id) ||
+            completedLessonIds.includes(l.id) ||
             l.assignment?.passingLearners?.some((id: any) => id.toString() === userId)
         );
     });
@@ -58,13 +58,13 @@ export function CurriculumView({ modules, activeLessonId, onSelectLesson, comple
                 </p>
             </div>
             <div className="py-2">
-                <Accordion type="single" collapsible className="w-full" defaultValue={modules[0]?._id}>
+                <Accordion type="single" collapsible className="w-full" defaultValue={modules[0]?.id}>
                     {modules.map((module, idx) => {
                         // A module is locked if it's not the first AND the previous module is not completed
                         const isModuleLocked = idx > 0 && !moduleCompletionStatus[idx - 1];
 
                         return (
-                            <AccordionItem key={module._id} value={module._id} className="border-b-0 px-2 mb-2">
+                            <AccordionItem key={module.id} value={module.id} className="border-b-0 px-2 mb-2">
                                 <AccordionTrigger
                                     className={cn(
                                         "px-4 py-3 hover:no-underline rounded-lg transition-colors group",
@@ -93,14 +93,14 @@ export function CurriculumView({ modules, activeLessonId, onSelectLesson, comple
                                     <AccordionContent className="pt-1 pb-2">
                                         <div className="flex flex-col gap-1 pl-2">
                                             {module.lessons?.map((lesson) => {
-                                                const isActive = activeLessonId === lesson._id;
+                                                const isActive = activeLessonId === lesson.id;
                                                 const isCompleted =
-                                                    completedLessonIds.includes(lesson._id) ||
+                                                    completedLessonIds.includes(lesson.id) ||
                                                     lesson.assignment?.passingLearners?.some((id: any) => id.toString() === userId);
 
                                                 return (
                                                     <button
-                                                        key={lesson._id}
+                                                        key={lesson.id}
                                                         onClick={() => onSelectLesson(lesson)}
                                                         className={cn(
                                                             "flex items-start gap-3 p-3 text-left rounded-lg transition-all duration-200",
@@ -112,7 +112,7 @@ export function CurriculumView({ modules, activeLessonId, onSelectLesson, comple
                                                         <div className="mt-0.5 flex-shrink-0">
                                                             {isCompleted ? (
                                                                 <CheckCircle className="w-4 h-4 text-emerald-500" />
-                                                            ) : lesson.videoUrl ? (
+                                                            ) : lesson.video_url ? (
                                                                 <PlayCircle className={cn("w-4 h-4", isActive ? "text-indigo-600" : "text-slate-400")} />
                                                             ) : (
                                                                 <FileText className={cn("w-4 h-4", isActive ? "text-indigo-600" : "text-slate-400")} />
@@ -124,7 +124,7 @@ export function CurriculumView({ modules, activeLessonId, onSelectLesson, comple
                                                             </p>
                                                             <div className="flex items-center gap-2 mt-1.5">
                                                                 <span className="text-[10px] text-muted-foreground bg-slate-100 px-1.5 py-0.5 rounded-sm">
-                                                                    {lesson.duration}m
+                                                                    {lesson.estimated_minutes}m
                                                                 </span>
                                                                 {lesson.assignment?.title && (
                                                                     <div className={cn(

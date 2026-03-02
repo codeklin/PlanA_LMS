@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/
 import { Plus, CheckCircle, Video, FileText, Trash2, GripVertical, Sparkles, ChevronDown, Clock, Layers, Award, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { api } from '@/lib/api';
+import { supabaseClient } from '@/lib/supabase/client';
 import { cn } from '@/lib/utils';
 import dynamic from 'next/dynamic';
 import 'react-quill-new/dist/quill.snow.css';
@@ -57,21 +57,55 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
         }
     });
 
+    // Load modules and lessons on mount
+    useEffect(() => {
+        if (courseId && !initialModules) {
+            loadModules();
+        }
+    }, [courseId]);
+
+    const loadModules = async () => {
+        try {
+            const { data, error } = await supabaseClient
+                .from('modules')
+                .select(`
+                    *,
+                    lessons:lessons(*)
+                `)
+                .eq('course_id', courseId)
+                .order('order_index', { ascending: true });
+
+            if (error) throw error;
+            setModules(data || []);
+        } catch (error) {
+            console.error('Error loading modules:', error);
+        }
+    };
+
     const handleAddModule = async () => {
         if (!newModuleName.trim()) return;
         setIsSaving(true);
         try {
-            const module = await api.createModule({
-                courseId,
-                name: newModuleName,
-                description: 'Academic Module'
-            });
-            setModules([...modules, { ...module, lessons: [] }]);
+            const { data, error } = await supabaseClient
+                .from('modules')
+                .insert({
+                    course_id: courseId,
+                    name: newModuleName,
+                    description: 'Academic Module',
+                    order_index: modules.length
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            setModules([...modules, { ...data, lessons: [] }]);
             setNewModuleName('');
             setIsAddingModule(false);
             toast.success('Module added to syllabus.');
-        } catch (error) {
-            toast.error('Failed to register module.');
+        } catch (error: any) {
+            console.error('Error creating module:', error);
+            toast.error(error.message || 'Failed to register module.');
         } finally {
             setIsSaving(false);
         }
@@ -81,14 +115,31 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
         if (!newLesson.name) return;
         setIsSaving(true);
         try {
-            const lesson = await api.createLesson({
-                moduleId,
-                ...newLesson
-            });
+            const moduleIndex = modules.findIndex(m => m.id === moduleId);
+            const module = modules[moduleIndex];
+            const lessonCount = module?.lessons?.length || 0;
+
+            const { data, error } = await supabaseClient
+                .from('lessons')
+                .insert({
+                    module_id: moduleId,
+                    name: newLesson.name,
+                    content: newLesson.content,
+                    video_url: newLesson.videoUrl || null,
+                    order_index: lessonCount,
+                    lesson_type: newLesson.assignment.type || 'task',
+                    estimated_minutes: newLesson.duration,
+                    assignment: newLesson.assignment.title ? newLesson.assignment : null,
+                    max_score: newLesson.assignment.maxScore || 10
+                })
+                .select()
+                .single();
+
+            if (error) throw error;
 
             const updatedModules = modules.map(m => {
-                if (m._id === moduleId) {
-                    return { ...m, lessons: [...(m.lessons || []), lesson] };
+                if (m.id === moduleId) {
+                    return { ...m, lessons: [...(m.lessons || []), data] };
                 }
                 return m;
             });
@@ -103,8 +154,9 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
             });
             setActiveModuleId(null);
             toast.success('Learning session established.');
-        } catch (error) {
-            toast.error('Failed to create session.');
+        } catch (error: any) {
+            console.error('Error creating lesson:', error);
+            toast.error(error.message || 'Failed to create session.');
         } finally {
             setIsSaving(false);
         }
@@ -178,7 +230,7 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
 
                 <Accordion type="single" collapsible className="space-y-4">
                     {modules.map((module, idx) => (
-                        <AccordionItem key={module._id} value={module._id} className="border-none">
+                        <AccordionItem key={module.id} value={module.id} className="border-none">
                             <Card className="rounded-[28px] border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 group">
                                 <AccordionTrigger className="p-0 hover:no-underline">
                                     <div className="flex items-center gap-6 p-6 md:p-8 w-full text-left">
@@ -207,9 +259,9 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
                                     {/* Existing Lessons List */}
                                     <div className="grid gap-3">
                                         {module.lessons?.map((lesson: any, sIdx: number) => (
-                                            <div key={lesson._id} className="group/session flex items-center gap-4 p-5 bg-slate-50/50 border border-slate-100 rounded-2xl hover:bg-white hover:shadow-lg hover:shadow-slate-200/50 hover:border-indigo-100 transition-all duration-300">
+                                            <div key={lesson.id} className="group/session flex items-center gap-4 p-5 bg-slate-50/50 border border-slate-100 rounded-2xl hover:bg-white hover:shadow-lg hover:shadow-slate-200/50 hover:border-indigo-100 transition-all duration-300">
                                                 <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover/session:text-indigo-600 transition-colors shadow-sm">
-                                                    {lesson.videoUrl ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                                                    {lesson.video_url ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Session {sIdx + 1}</p>
@@ -229,7 +281,7 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
                                     </div>
 
                                     {/* Add Session Area */}
-                                    {activeModuleId === module._id ? (
+                                    {activeModuleId === module.id ? (
                                         <Card className="bg-indigo-50/20 border-indigo-100 rounded-[24px] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
                                             <CardHeader className="bg-white/50 border-b border-indigo-50 p-6 flex flex-row items-center justify-between">
                                                 <div>
@@ -411,7 +463,7 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
                                             <CardFooter className="bg-slate-50/50 p-6 flex justify-end gap-3 border-t border-indigo-50">
                                                 <Button variant="ghost" onClick={() => setActiveModuleId(null)} className="rounded-xl font-bold text-slate-500">Cancel</Button>
                                                 <Button
-                                                    onClick={() => handleAddLesson(module._id)}
+                                                    onClick={() => handleAddLesson(module.id)}
                                                     disabled={isSaving || !newLesson.name}
                                                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl h-11 px-8 shadow-md"
                                                 >
@@ -423,7 +475,7 @@ export function ModuleManager({ courseId, initialModules, onComplete }: ModuleMa
                                         <Button
                                             variant="outline"
                                             className="w-full h-14 border-dashed border-2 border-slate-200 rounded-2xl text-slate-400 font-bold hover:bg-slate-50 hover:border-indigo-200 hover:text-indigo-500 transition-all duration-300"
-                                            onClick={() => setActiveModuleId(module._id)}
+                                            onClick={() => setActiveModuleId(module.id)}
                                         >
                                             <Plus className="w-5 h-5 mr-3" /> Initialize New Learning Session
                                         </Button>

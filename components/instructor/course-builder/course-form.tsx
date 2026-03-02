@@ -7,18 +7,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { api } from '@/lib/api';
+import { supabaseApi } from '@/lib/supabase-api';
 import { BookOpen, Clock, FileText, ArrowRight, Loader2, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface CourseFormProps {
     onSuccess: (course: any) => void;
     initialData?: {
-        id?: string;
-        _id?: string;
+        id: string;
         name: string;
         description: string;
-        duration: number;
+        estimated_hours: number;
     };
 }
 
@@ -27,20 +26,22 @@ export function CourseForm({ onSuccess, initialData }: CourseFormProps) {
     const [formData, setFormData] = useState({
         name: initialData?.name || '',
         description: initialData?.description || '',
-        duration: initialData?.duration || 0
+        estimated_hours: initialData?.estimated_hours || 0
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const courseId = initialData?.id || initialData?._id;
             let course;
-            if (courseId) {
-                course = await api.updateCourse(courseId, formData);
+            if (initialData?.id) {
+                course = await supabaseApi.updateCourse(initialData.id, formData);
                 toast.success('Course details updated.');
             } else {
-                course = await api.createCourse(formData);
+                course = await supabaseApi.createCourse({
+                    ...formData,
+                    is_published: false
+                });
                 toast.success('Course fundamentals established.');
             }
             onSuccess(course);
@@ -83,16 +84,16 @@ export function CourseForm({ onSuccess, initialData }: CourseFormProps) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="duration" className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Estimated Commitment (Hours)</Label>
+                            <Label htmlFor="estimated_hours" className="text-xs font-bold uppercase tracking-widest text-slate-500 ml-1">Estimated Commitment (Hours)</Label>
                             <div className="relative group">
                                 <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                                 <Input
-                                    id="duration"
+                                    id="estimated_hours"
                                     type="number"
                                     min="0"
                                     required
-                                    value={formData.duration}
-                                    onChange={(e) => setFormData({ ...formData, duration: Number(e.target.value) })}
+                                    value={formData.estimated_hours}
+                                    onChange={(e) => setFormData({ ...formData, estimated_hours: Number(e.target.value) })}
                                     className="h-14 pl-12 bg-slate-50/50 border-slate-100 rounded-2xl focus:bg-white focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all font-medium text-slate-900"
                                 />
                             </div>

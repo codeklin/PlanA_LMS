@@ -3,66 +3,44 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabaseAuth } from '@/lib/supabase-auth-context';
-import { supabaseClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, BookOpen, Loader2, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { CourseForm } from '@/components/instructor/course-builder/course-form';
+import { ModuleManager } from '@/components/instructor/course-builder/module-manager';
 import { toast } from 'sonner';
+import { supabaseApi } from '@/lib/supabase-api';
 
 export default function NewCoursePage() {
   const router = useRouter();
   const { user } = useSupabaseAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: '',
-    difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
-    estimated_hours: 0,
-    icon: '📚',
-    is_published: false
-  });
+  const [course, setCourse] = useState<any>(null);
+  const [step, setStep] = useState<'details' | 'modules'>('details');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const handleCourseCreated = (newCourse: any) => {
+    setCourse(newCourse);
+    setStep('modules');
+  };
 
+  const handleComplete = async () => {
     try {
-      const { data, error } = await supabaseClient
-        .from('courses')
-        .insert({
-          ...formData,
-          created_by: user?.id,
-          instructor_id: user?.id
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success('Course created successfully!');
-      router.push(`/instructor/courses/edit/${data.id}`);
+      await supabaseApi.updateCourse(course.id, { is_published: true });
+      toast.success('Course published successfully!');
+      router.push('/dashboard/courses');
     } catch (error: any) {
-      console.error('Error creating course:', error);
-      toast.error(error?.message || 'Failed to create course');
-    } finally {
-      setIsLoading(false);
+      toast.error(error.message || 'Failed to publish course');
     }
   };
 
   return (
     <div className="min-h-screen bg-neutral-50/50 p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-8">
         <Button 
           variant="ghost" 
-          onClick={() => router.push('/dashboard')}
+          onClick={() => router.push('/dashboard/courses')}
           className="mb-4"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
+          Back to Courses
         </Button>
 
         <div>
@@ -70,14 +48,19 @@ export default function NewCoursePage() {
           <p className="text-slate-500 mt-2">Build a project-based course for learners</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <Card className="rounded-2xl border-slate-100 shadow-sm">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style={{ backgroundColor: '#FFF4F0' }}>
-                  <BookOpen className="w-6 h-6" style={{ color: '#FF6B35' }} />
-                </div>
-                <div>
+        {step === 'details' ? (
+          <CourseForm onSuccess={handleCourseCreated} />
+        ) : (
+          <ModuleManager
+            courseId={course.id}
+            onComplete={handleComplete}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
                   <CardTitle>Course Details</CardTitle>
                   <CardDescription>Set the essential information for your course</CardDescription>
                 </div>

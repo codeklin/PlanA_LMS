@@ -3,18 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSupabaseAuth } from '@/lib/supabase-auth-context';
-import { supabaseClient } from '@/lib/supabase/client';
 import { supabaseApi } from '@/lib/supabase-api';
 import { TopHeader } from '@/components/top-header';
 import { CourseCard } from '@/components/course-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Search, Plus, Loader2, Edit } from 'lucide-react';
+import { BookOpen, Search, Plus, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function CoursesPage() {
@@ -22,21 +17,9 @@ export default function CoursesPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   const isInstructorOrAdmin = user?.role === 'instructor' || user?.role === 'admin' || user?.role === 'super-admin';
-
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    category: '',
-    difficulty: 'beginner' as 'beginner' | 'intermediate' | 'advanced',
-    estimated_hours: 0,
-    icon: '📚',
-    is_published: false
-  });
 
   const loadCourses = async () => {
     try {
@@ -54,43 +37,6 @@ export default function CoursesPage() {
   useEffect(() => {
     loadCourses();
   }, []);
-
-  const handleCreateCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-
-    try {
-      const { data, error } = await supabaseClient
-        .from('courses')
-        .insert({
-          ...formData,
-          created_by: user?.id,
-          instructor_id: user?.id
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success('Course created successfully!');
-      setIsDialogOpen(false);
-      setFormData({
-        name: '',
-        description: '',
-        category: '',
-        difficulty: 'beginner',
-        estimated_hours: 0,
-        icon: '📚',
-        is_published: false
-      });
-      await loadCourses();
-    } catch (error: any) {
-      console.error('Error creating course:', error);
-      toast.error(error?.message || 'Failed to create course');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const filteredCourses = courses.filter(course => {
     if (!searchQuery) return true;
@@ -127,145 +73,14 @@ export default function CoursesPage() {
               />
             </div>
             {isInstructorOrAdmin && (
-              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="rounded-xl font-semibold" style={{ backgroundColor: '#FF6B35' }}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Course
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle className="text-2xl">Create New Course</DialogTitle>
-                    <DialogDescription>
-                      Build a project-based course for your learners
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <form onSubmit={handleCreateCourse} className="space-y-6 mt-4">
-                    {/* Course Name */}
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Course Name *</Label>
-                      <Input
-                        id="name"
-                        required
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g. Full-Stack Web Development"
-                        className="h-12"
-                      />
-                    </div>
-
-                    {/* Description */}
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Description *</Label>
-                      <Textarea
-                        id="description"
-                        required
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="What will students learn and achieve..."
-                        className="min-h-[100px]"
-                      />
-                    </div>
-
-                    {/* Category and Difficulty */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="category">Category</Label>
-                        <Input
-                          id="category"
-                          value={formData.category}
-                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                          placeholder="e.g. Web Development"
-                          className="h-12"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="difficulty">Difficulty *</Label>
-                        <select
-                          id="difficulty"
-                          required
-                          value={formData.difficulty}
-                          onChange={(e) => setFormData({ ...formData, difficulty: e.target.value as any })}
-                          className="w-full h-12 px-3 rounded-md border border-slate-200 bg-white"
-                        >
-                          <option value="beginner">Beginner</option>
-                          <option value="intermediate">Intermediate</option>
-                          <option value="advanced">Advanced</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Hours and Icon */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="estimated_hours">Estimated Hours *</Label>
-                        <Input
-                          id="estimated_hours"
-                          type="number"
-                          min="0"
-                          required
-                          value={formData.estimated_hours}
-                          onChange={(e) => setFormData({ ...formData, estimated_hours: Number(e.target.value) })}
-                          placeholder="e.g. 40"
-                          className="h-12"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="icon">Icon (Emoji)</Label>
-                        <Input
-                          id="icon"
-                          value={formData.icon}
-                          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                          placeholder="📚"
-                          className="h-12"
-                          maxLength={2}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Publish Toggle */}
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100">
-                      <input
-                        type="checkbox"
-                        id="is_published"
-                        checked={formData.is_published}
-                        onChange={(e) => setFormData({ ...formData, is_published: e.target.checked })}
-                        className="w-4 h-4 rounded border-slate-300 text-orange-600"
-                      />
-                      <div>
-                        <Label htmlFor="is_published" className="font-semibold cursor-pointer">
-                          Publish immediately
-                        </Label>
-                        <p className="text-xs text-slate-500">Make visible to learners right away</p>
-                      </div>
-                    </div>
-
-                    {/* Submit */}
-                    <Button
-                      type="submit"
-                      disabled={isSaving}
-                      className="w-full h-12 font-semibold rounded-xl"
-                      style={{ backgroundColor: '#FF6B35' }}
-                    >
-                      {isSaving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating...
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-4 h-4 mr-2" />
-                          Create Course
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
+              <Button 
+                onClick={() => router.push('/instructor/courses/new')}
+                className="rounded-xl font-semibold" 
+                style={{ backgroundColor: '#FF6B35' }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Course
+              </Button>
             )}
           </div>
         </div>
@@ -295,20 +110,21 @@ export default function CoursesPage() {
                   />
                 </div>
                 {isInstructorOrAdmin && (
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <Badge className={course.is_published ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}>
                       {course.is_published ? 'Published' : 'Draft'}
                     </Badge>
                     <Button
                       size="sm"
                       variant="secondary"
-                      className="h-8 w-8 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/instructor/courses/edit/${course.id}`);
                       }}
+                      className="bg-white hover:bg-slate-50"
                     >
-                      <Edit className="w-4 h-4" />
+                      <Edit className="w-3 h-3 mr-1" />
+                      Edit
                     </Button>
                   </div>
                 )}
@@ -331,7 +147,7 @@ export default function CoursesPage() {
             </p>
             {isInstructorOrAdmin && !searchQuery && (
               <Button 
-                onClick={() => setIsDialogOpen(true)}
+                onClick={() => router.push('/instructor/courses/new')}
                 style={{ backgroundColor: '#FF6B35' }}
               >
                 <Plus className="w-4 h-4 mr-2" />
