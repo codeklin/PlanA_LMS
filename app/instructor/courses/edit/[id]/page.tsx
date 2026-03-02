@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSupabaseAuth } from '@/lib/supabase-auth-context';
 import { supabaseApi } from '@/lib/supabase-api';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { CourseForm } from '@/components/instructor/course-builder/course-form';
 import { ModuleManager } from '@/components/instructor/course-builder/module-manager';
 import { toast } from 'sonner';
@@ -106,21 +105,6 @@ export default function EditCoursePage() {
             onComplete={handleComplete}
           />
         )}
-      </div>
-    </div>
-  );
-}
-
-              <Edit className="h-6 w-6 text-blue-600" />
-              <CardTitle>Coming Soon</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <p className="text-slate-500">
-              Course editing features are being developed.
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
